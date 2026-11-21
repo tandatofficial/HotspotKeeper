@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HotspotKeeper - iPhone 11 TrollStore (iOS 15.4)</title>
+    <style>
+        :root {
+            --ios-bg: #000000;
+            --card-bg: rgba(28, 28, 30, 0.85);
+            --accent-green: #30D158;
+            --accent-blue: #0A84FF;
+            --accent-orange: #FF9F0A;
+            --accent-purple: #BF5AF2;
+            --text-primary: #FFFFFF;
+            --text-secondary: #8E8E93;
+            --border-color: rgba(255, 255, 255, 0.12);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            background-color: #0b0c10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 16px;
+            color: var(--text-primary);
+        }
+
+        /* Mock iPhone 11 Frame */
+        .iphone-frame {
+            width: 395px;
+            height: 820px;
+            background: #000000;
+            border-radius: 50px;
+            border: 4px solid #2a2a2d;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.85), inset 0 0 5px 2px rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Notch (iPhone 11 style) */
+        .notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 185px;
+            height: 28px;
+            background: #000;
+            border-bottom-left-radius: 18px;
+            border-bottom-right-radius: 18px;
+            z-index: 300;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .notch .speaker { width: 50px; height: 4px; background: #1f1f22; border-radius: 2px; }
+        .notch .camera { width: 10px; height: 10px; background: #091016; border-radius: 50%; margin-left: 14px; border: 1px solid #192535; }
+
+        /* Status Bar */
+        .status-bar {
+            height: 44px;
+            padding: 8px 24px 0 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 280;
+            background: #000;
+        }
+        .status-icons { display: flex; gap: 6px; align-items: center; font-size: 12px; }
+
+        /* App Container */
+        .app-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            background: radial-gradient(circle at 50% 10%, #151e18 0%, #050507 100%);
+            padding: 12px 18px;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 24px;
+        }
+        .header h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+
+        .btn-oled {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Giant Circle Activation Button */
+        .circle-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        .giant-button {
+            width: 190px;
+            height: 190px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1c2b21 0%, #101913 100%);
+            border: 3px solid rgba(255, 255, 255, 0.12);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            position: relative;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7);
+            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        .giant-button:active {
+            transform: scale(0.95);
+        }
+
+        .giant-button.active {
+            background: linear-gradient(135deg, #1aa34a 0%, #0f682e 100%);
+            border: 3px solid rgba(48, 209, 88, 0.6);
+            box-shadow: 0 0 50px rgba(48, 209, 88, 0.45);
+        }
+
+        /* Pulse ring */
+        .pulse-ring {
+            position: absolute;
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            border: 2px solid rgba(48, 209, 88, 0.4);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .giant-button.active .pulse-ring {
+            animation: pulse 2s infinite ease-out;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.9); opacity: 0.8; }
+            100% { transform: scale(1.25); opacity: 0; }
+        }
+
+        .btn-icon {
+            font-size: 44px;
+            color: #ffffff;
+        }
+        .btn-label {
+            font-size: 13px;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: 0.5px;
+        }
+        .uptime-badge {
+            font-size: 12px;
+            font-family: ui-monospace, Menlo, Consolas, monospace;
+            background: rgba(0, 0, 0, 0.35);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+            color: #e0f8e5;
+        }
+
+        .status-text {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+        .status-text.active {
+            color: var(--accent-green);
+        }
+
+        /* Dashboard Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        .stat-card {
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 16px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .stat-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        .stat-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .stat-title {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        .stat-val {
+            font-size: 13px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        /* Action Buttons */
+        .btn-hotspot-settings {
+            background: rgba(255, 255, 255, 0.12);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 16px;
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 14px;
+        }
+
+        /* OLED Mode Screen (Hidden by default) */
+        .oled-screen {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #000000;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            z-index: 500;
+            cursor: pointer;
+        }
+        .oled-screen.show {
+            display: flex;
+        }
+
+        /* Home Indicator */
+        .home-indicator {
+            position: absolute;
+            bottom: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 134px;
+            height: 4px;
+            background: #ffffff;
+            border-radius: 3px;
+            opacity: 0.6;
+            z-index: 400;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="iphone-frame">
+        <div class="notch"><div class="speaker"></div><div class="camera"></div></div>
+
+        <div class="status-bar">
+            <span>21:05</span>
+            <div class="status-icons"><span>LTE</span><span>100%</span></div>
+        </div>
+
+        <div class="app-container">
+            <!-- Header -->
+            <div class="header">
+                <div>
+                    <span style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">iOS 15.4 • TROLLSTORE • iPHONE 11</span>
+                    <h1>HotspotKeeper</h1>
+                </div>
+                <button class="btn-oled" onclick="enterOledMode()">
+                    <span>🌙 Màn hình đen</span>
+                </button>
+            </div>
+
+            <!-- Giant Toggle Button -->
+            <div class="circle-area">
+                <div class="giant-button" id="mainButton" onclick="toggleHotspot()">
+                    <div class="pulse-ring"></div>
+                    <div class="btn-icon" id="btnIcon">📶</div>
+                    <div class="btn-label" id="btnLabel">CHƯA BẬT</div>
+                    <div class="uptime-badge" id="uptimeBadge" style="display: none;">00:00:00</div>
+                </div>
+
+                <div class="status-text" id="statusMessage">Bấm để kích hoạt khóa giữ sóng 24/7</div>
+            </div>
+
+            <!-- Dashboard Stats -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(10, 132, 255, 0.2); color: var(--accent-blue);">⏳</div>
+                    <div class="stat-info">
+                        <span class="stat-title">Thời gian giữ</span>
+                        <span class="stat-val" id="statTime">00:00:00</span>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(48, 209, 88, 0.2); color: var(--accent-green);">📡</div>
+                    <div class="stat-info">
+                        <span class="stat-title">Gói mồi UDP</span>
+                        <span class="stat-val" id="statPackets">0 pkts</span>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(191, 90, 242, 0.2); color: var(--accent-purple);">🌐</div>
+                    <div class="stat-info">
+                        <span class="stat-title">Subnet Hotspot</span>
+                        <span class="stat-val">172.20.10.x</span>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(255, 159, 10, 0.2); color: var(--accent-orange);">🔋</div>
+                    <div class="stat-info">
+                        <span class="stat-title">Pin iPhone</span>
+                        <span class="stat-val">100% (Đang sạc)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shortcut Button -->
+            <div class="btn-hotspot-settings" onclick="alert('Đang mở Cài đặt Điểm phát sóng của iPhone...')">
+                <span>⚙️ Mở Cài đặt Điểm phát sóng iOS</span>
+                <span>↗</span>
+            </div>
+
+            <!-- OLED Screen Saver Mode -->
+            <div class="oled-screen" id="oledScreen" onclick="exitOledMode()">
+                <div style="font-size: 32px; color: rgba(48, 209, 88, 0.7);">📶</div>
+                <div style="font-size: 13px; font-weight: 700; color: rgba(255, 255, 255, 0.4); letter-spacing: 1px;">ĐANG GIỮ PHÁT WI-FI 24/7</div>
+                <div style="font-size: 34px; font-weight: 700; color: rgba(48, 209, 88, 0.85); font-family: ui-monospace, Menlo, Consolas, monospace;" id="oledTime">00:00:00</div>
+                <div style="font-size: 11px; color: rgba(255, 255, 255, 0.2); margin-top: 30px;">Chạm vào màn hình để mở lại</div>
+            </div>
+
+            <div class="home-indicator"></div>
+        </div>
+    </div>
+
+    <script>
+        let isActive = false;
+        let uptimeSeconds = 0;
+        let packetsSent = 0;
+        let timer = null;
+        let packetTimer = null;
+
+        function toggleHotspot() {
+            isActive = !isActive;
+            const btn = document.getElementById("mainButton");
+            const btnIcon = document.getElementById("btnIcon");
+            const btnLabel = document.getElementById("btnLabel");
+            const uptimeBadge = document.getElementById("uptimeBadge");
+            const statusMessage = document.getElementById("statusMessage");
+
+            if (isActive) {
+                btn.classList.add("active");
+                btnIcon.innerText = "📶";
+                btnLabel.innerText = "ĐANG GIỮ SÓNG";
+                uptimeBadge.style.display = "block";
+                statusMessage.innerText = "Đã khóa IOKit + Silent Audio + UDP Ping 24/7";
+                statusMessage.classList.add("active");
+
+                timer = setInterval(() => {
+                    uptimeSeconds++;
+                    const fmt = formatTime(uptimeSeconds);
+                    document.getElementById("statTime").innerText = fmt;
+                    document.getElementById("uptimeBadge").innerText = fmt;
+                    document.getElementById("oledTime").innerText = fmt;
+                }, 1000);
+
+                packetTimer = setInterval(() => {
+                    packetsSent += 2;
+                    document.getElementById("statPackets").innerText = packetsSent + " pkts";
+                }, 5000);
+            } else {
+                btn.classList.remove("active");
+                btnIcon.innerText = "📶";
+                btnLabel.innerText = "CHƯA BẬT";
+                uptimeBadge.style.display = "none";
+                statusMessage.innerText = "Bấm để kích hoạt khóa giữ sóng 24/7";
+                statusMessage.classList.remove("active");
+
+                clearInterval(timer);
+                clearInterval(packetTimer);
+                uptimeSeconds = 0;
+                packetsSent = 0;
+                document.getElementById("statTime").innerText = "00:00:00";
+                document.getElementById("statPackets").innerText = "0 pkts";
+            }
+        }
+
+        function formatTime(sec) {
+            const h = String(Math.floor(sec / 3600)).padStart(2, '0');
+            const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+            const s = String(sec % 60).padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
+
+        function enterOledMode() {
+            document.getElementById("oledScreen").classList.add("show");
+        }
+
+        function exitOledMode() {
+            document.getElementById("oledScreen").classList.remove("show");
+        }
+    </script>
+</body>
+</html>

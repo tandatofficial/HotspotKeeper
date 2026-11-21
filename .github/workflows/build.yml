@@ -1,0 +1,53 @@
+name: Build HotspotKeeper IPA (TrollStore iOS 15+)
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install ldid
+
+      - name: Compile HotspotKeeper App (SwiftUI & IOKit)
+        run: |
+          SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
+          mkdir -p Payload/HotspotKeeper.app
+
+          # Compile Swift sources into arm64 iOS 15 executable
+          xcrun -sdk iphoneos swiftc -O \
+            -target arm64-apple-ios15.0 \
+            -sdk "$SDK_PATH" \
+            -emit-executable \
+            HotspotKeeperApp.swift \
+            HotspotEngine.swift \
+            ContentView.swift \
+            -o Payload/HotspotKeeper.app/HotspotKeeper \
+            -framework UIKit \
+            -framework SwiftUI \
+            -framework AVFoundation \
+            -framework Foundation
+
+          # Copy Info.plist
+          cp Info.plist Payload/HotspotKeeper.app/Info.plist
+
+          # Sign with TrollStore root entitlements
+          ldid -Sentitlements.plist Payload/HotspotKeeper.app/HotspotKeeper
+
+          # Package into IPA
+          zip -r9 HotspotKeeper_TrollStore_iOS15.ipa Payload
+          ls -lh HotspotKeeper_TrollStore_iOS15.ipa
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HotspotKeeper-TrollStore-iOS15-IPA
+          path: HotspotKeeper_TrollStore_iOS15.ipa
