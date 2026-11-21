@@ -10,5 +10,11 @@
     <false/>
     <key>com.apple.private.iokit.power-management</key>
     <true/>
+    <key>com.apple.wifi.manager-access</key>
+    <true/>
+    <key>com.apple.private.network.wifi</key>
+    <true/>
+    <key>com.apple.MobileWiFi.manager</key>
+    <true/>
 </dict>
 </plist>

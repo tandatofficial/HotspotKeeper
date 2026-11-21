@@ -17,7 +17,7 @@ struct ContentView: View {
                 }
             } else {
                 // MARK: - Giao diện chính
-                VStack(spacing: 24) {
+                VStack(spacing: 20) {
                     // Header
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {
@@ -49,6 +49,26 @@ struct ContentView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 14)
+
+                    // Banner hướng dẫn bật "Tối đa hóa tương thích"
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "exclamationmark.shield.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.yellow)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Mẹo chống chập chờn / rớt sóng:")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.white)
+                            Text("Bật 'Tối đa hóa tương thích' trong Cài đặt Hotspot để phát băng tần 2.4GHz ổn định 100%.")
+                                .font(.system(size: 11))
+                                .foregroundColor(Color.white.opacity(0.75))
+                        }
+                        Spacer()
+                    }
+                    .padding(12)
+                    .background(Color.yellow.opacity(0.12))
+                    .cornerRadius(12)
+                    .padding(.horizontal, 20)
 
                     Spacer()
 
@@ -83,7 +103,7 @@ struct ContentView: View {
                                         .font(.system(size: 46, weight: .semibold))
                                         .foregroundColor(.white)
 
-                                    Text(engine.isActive ? "ĐANG GIỮ PHÁT" : "CHƯA BẬT")
+                                    Text(engine.isActive ? "ĐANG ÉP PHÁT" : "CHƯA BẬT")
                                         .font(.system(size: 14, weight: .bold))
                                         .foregroundColor(.white)
 
@@ -111,7 +131,7 @@ struct ContentView: View {
                         }
 
                         HStack(spacing: 12) {
-                            StatCard(icon: "network", title: "Subnet Hotspot", value: "172.20.10.x", color: .purple)
+                            StatCard(icon: "antenna.radiowaves.left.and.right", title: "Discovery Beacon", value: engine.isActive ? "Ép liên tục (3s)" : "Tắt", color: .purple)
                             StatCard(icon: "battery.100.bolt", title: "Pin iPhone", value: "\(engine.batteryLevel)% (\(engine.batteryState))", color: .orange)
                         }
                     }
@@ -201,7 +221,7 @@ struct OLEDClockView: View {
                     .font(.system(size: 32))
                     .foregroundColor(Color.green.opacity(0.7))
 
-                Text("ĐANG GIỮ PHÁT WI-FI 24/7")
+                Text("ĐANG ÉP GIỮ PHÁT WI-FI 24/7")
                     .font(.system(size: 13, weight: .bold))
                     .foregroundColor(Color.white.opacity(0.4))
 

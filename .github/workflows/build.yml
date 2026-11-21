@@ -20,7 +20,7 @@ jobs:
         run: |
           brew install ldid
 
-      - name: Compile HotspotKeeper App (SwiftUI & IOKit)
+      - name: Compile HotspotKeeper App (SwiftUI & IOKit & MobileWiFi)
         run: |
           SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
           mkdir -p Payload/HotspotKeeper.app
@@ -42,7 +42,7 @@ jobs:
           # Copy Info.plist
           cp Info.plist Payload/HotspotKeeper.app/Info.plist
 
-          # Sign with TrollStore root entitlements
+          # Sign with TrollStore root & MobileWiFi entitlements
           ldid -Sentitlements.plist Payload/HotspotKeeper.app/HotspotKeeper
 
           # Package into IPA
@@ -59,20 +59,16 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         with:
-          tag_name: v1.0.0
-          name: "HotspotKeeper v1.0.0 - iOS 15.4 TrollStore"
+          tag_name: v1.1.0
+          name: "HotspotKeeper v1.1.0 - Ép Tự Động Bật & Chống Rớt Sóng (TrollStore)"
           body: |
-            ### 📡 HotspotKeeper v1.0.0 (TrollStore Edition)
-            Ứng dụng giữ kết nối Điểm truy cập cá nhân (Personal Hotspot) phát Wi-Fi liên tục 24/7 không bao giờ ngắt trên iOS 15.4 (iPhone 11).
+            ### 📡 HotspotKeeper v1.1.0 (Auto-Force & Anti-Flicker Edition)
+            Bản nâng cấp mạnh mẽ cho iOS 15.4 (iPhone 11) TrollStore:
 
-            #### 🚀 Các tính năng chính:
-            - **IOKit Power Assertion**: Duy trì CPU & Wi-Fi Chip luôn hoạt động, chặn Apple `powerd` deep-sleep.
-            - **Silent Audio Engine**: Giữ tiến trình app sống vĩnh viễn ngầm trong nền.
-            - **UDP Keep-Alive Packet Generator**: Định kỳ gửi heartbeat qua subnet `172.20.10.x` để iOS không ngắt mạng do nhàn rỗi.
-            - **Chế độ OLED Màn hình đen**: Chạm đúp để tắt sáng màn hình khi cắm sạc phát Wi-Fi cả ngày lẫn đêm.
-
-            #### 📲 Hướng dẫn cài đặt:
-            1. Tải trực tiếp file `HotspotKeeper_TrollStore_iOS15.ipa` bên dưới bằng Safari.
-            2. Bấm nút Chia sẻ (Share) -> Chọn **TrollStore**.
-            3. Mở app, bật Hotspot trong Cài đặt iPhone rồi bấm **BẬT GIỮ PHÁT**.
+            #### 🚀 Các nâng cấp mới trong v1.1.0:
+            1. **Tự Động Ép Bật Phần Cứng Hotspot:** Tích hợp trực tiếp `MobileWiFi.framework` (`WiFiManagerClientSetMISState`) và quyền `com.apple.wifi.manager-access`, tự kích hoạt modem phát Hotspot khi ấn nút.
+            2. **Discovery Beacon Loop (3s/lần):** Liên tục phát tín hiệu `WiFiManagerClientSetMISDiscoveryState(1)`, ngăn chặn hoàn toàn việc iOS ẩn SSID khiến máy tính bị mất sóng.
+            3. **Khóa 2 tầng Power Management:** Kích hoạt đồng thời cả `PreventSystemSleep` và `PreventUserIdleSystemSleep`.
+            4. **4G Cellular Heartbeat:** Định kỳ tạo luồng dữ liệu 4G nhẹ để trạm phát sóng nhà mạng không đưa kết nối vào trạng thái ngủ đông (RRC Idle).
+            5. **Chống chập chờn:** Hướng dẫn bật 'Tối đa hóa tương thích' (băng tần 2.4GHz) cho iPhone 11.
           files: HotspotKeeper_TrollStore_iOS15.ipa
