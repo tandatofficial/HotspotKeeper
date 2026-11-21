@@ -5,6 +5,9 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: macos-latest
@@ -51,3 +54,25 @@ jobs:
         with:
           name: HotspotKeeper-TrollStore-iOS15-IPA
           path: HotspotKeeper_TrollStore_iOS15.ipa
+
+      - name: Release IPA directly on GitHub
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        with:
+          tag_name: v1.0.0
+          name: "HotspotKeeper v1.0.0 - iOS 15.4 TrollStore"
+          body: |
+            ### 📡 HotspotKeeper v1.0.0 (TrollStore Edition)
+            Ứng dụng giữ kết nối Điểm truy cập cá nhân (Personal Hotspot) phát Wi-Fi liên tục 24/7 không bao giờ ngắt trên iOS 15.4 (iPhone 11).
+
+            #### 🚀 Các tính năng chính:
+            - **IOKit Power Assertion**: Duy trì CPU & Wi-Fi Chip luôn hoạt động, chặn Apple `powerd` deep-sleep.
+            - **Silent Audio Engine**: Giữ tiến trình app sống vĩnh viễn ngầm trong nền.
+            - **UDP Keep-Alive Packet Generator**: Định kỳ gửi heartbeat qua subnet `172.20.10.x` để iOS không ngắt mạng do nhàn rỗi.
+            - **Chế độ OLED Màn hình đen**: Chạm đúp để tắt sáng màn hình khi cắm sạc phát Wi-Fi cả ngày lẫn đêm.
+
+            #### 📲 Hướng dẫn cài đặt:
+            1. Tải trực tiếp file `HotspotKeeper_TrollStore_iOS15.ipa` bên dưới bằng Safari.
+            2. Bấm nút Chia sẻ (Share) -> Chọn **TrollStore**.
+            3. Mở app, bật Hotspot trong Cài đặt iPhone rồi bấm **BẬT GIỮ PHÁT**.
+          files: HotspotKeeper_TrollStore_iOS15.ipa
