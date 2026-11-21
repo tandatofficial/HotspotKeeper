@@ -1,46 +1,48 @@
 import Foundation
 import AVFoundation
 import UIKit
+import Darwin
 
-// MARK: - C / IOKit Private Declarations for Power Management
-// Trong TrollStore (có entitlement platform-application và no-sandbox),
-// ta có thể gọi trực tiếp IOPMAssertionCreateWithName để cấm kernel powerd tắt CPU/Wi-Fi.
-typealias IOPMAssertionID = UInt32
-typealias IOReturn = Int32
+// MARK: - Dynamic IOKit Power Management Functions
+// Sử dụng dynamic resolution (dlsym) để không bị lỗi thiếu link symbol khi biên dịch với iOS SDK chuẩn
+typealias IOPMAssertionCreateWithNameFunc = @convention(c) (CFString, UInt32, CFString, UnsafeMutablePointer<UInt32>) -> Int32
+typealias IOPMAssertionReleaseFunc = @convention(c) (UInt32) -> Int32
 
-@_silgen_name("IOPMAssertionCreateWithName")
-func IOPMAssertionCreateWithName(
-    _ assertionType: CFString,
-    _ assertionLevel: UInt32,
-    _ assertionName: CFString,
-    _ assertionID: UnsafeMutablePointer<IOPMAssertionID>
-) -> IOReturn
-
-@_silgen_name("IOPMAssertionRelease")
-func IOPMAssertionRelease(_ assertionID: IOPMAssertionID) -> IOReturn
-
-// MARK: - Hotspot Engine
 class HotspotEngine: ObservableObject {
     static let shared = HotspotEngine()
 
     @Published var isActive: Bool = false
     @Published var uptimeSeconds: Int = 0
     @Published var packetsSent: Int = 0
-    @Published var connectedClients: Int = 0
     @Published var batteryLevel: Int = 100
     @Published var batteryState: String = "Đang sạc"
     @Published var statusMessage: String = "Sẵn sàng kích hoạt"
 
-    private var powerAssertionID: IOPMAssertionID = 0
+    private var powerAssertionID: UInt32 = 0
     private var audioPlayer: AVAudioPlayer?
     private var timer: Timer?
     private var pingTimer: Timer?
     private var bgTask: UIBackgroundTaskIdentifier = .invalid
     private var udpSocket: Int32 = -1
 
+    private var pmaCreateFunc: IOPMAssertionCreateWithNameFunc?
+    private var pmaReleaseFunc: IOPMAssertionReleaseFunc?
+
     init() {
+        resolveIOKitSymbols()
         UIDevice.current.isBatteryMonitoringEnabled = true
         updateBatteryInfo()
+    }
+
+    private func resolveIOKitSymbols() {
+        if let handle = dlopen(nil, RTLD_NOW) {
+            if let symCreate = dlsym(handle, "IOPMAssertionCreateWithName") {
+                pmaCreateFunc = unsafeBitCast(symCreate, to: IOPMAssertionCreateWithNameFunc.self)
+            }
+            if let symRelease = dlsym(handle, "IOPMAssertionRelease") {
+                pmaReleaseFunc = unsafeBitCast(symRelease, to: IOPMAssertionReleaseFunc.self)
+            }
+        }
     }
 
     // MARK: - Bật / Tắt Khóa Giữ Sóng Hotspot
@@ -110,9 +112,13 @@ class HotspotEngine: ObservableObject {
 
     // MARK: - 1. IOKit Assertion: Chống Deep Sleep
     private func acquirePowerAssertion() {
+        guard let createFunc = pmaCreateFunc else {
+            print("[HotspotKeeper] IOPMAssertionCreateWithName không khả dụng qua dlsym")
+            return
+        }
         let reason = "HotspotKeeper 24/7 Keep-Alive" as CFString
         let type = "PreventSystemSleep" as CFString
-        let result = IOPMAssertionCreateWithName(type, 255, reason, &powerAssertionID)
+        let result = createFunc(type, 255, reason, &powerAssertionID)
         if result == 0 {
             print("[HotspotKeeper] Đã khóa thành công IOKit PreventSystemSleep (ID: \(powerAssertionID))")
         } else {
@@ -121,11 +127,10 @@ class HotspotEngine: ObservableObject {
     }
 
     private func releasePowerAssertion() {
-        if powerAssertionID != 0 {
-            _ = IOPMAssertionRelease(powerAssertionID)
-            print("[HotspotKeeper] Đã giải phóng IOKit Assertion ID: \(powerAssertionID)")
-            powerAssertionID = 0
-        }
+        guard let releaseFunc = pmaReleaseFunc, powerAssertionID != 0 else { return }
+        _ = releaseFunc(powerAssertionID)
+        print("[HotspotKeeper] Đã giải phóng IOKit Assertion ID: \(powerAssertionID)")
+        powerAssertionID = 0
     }
 
     // MARK: - 2. Silent Audio Background Loop
@@ -135,7 +140,7 @@ class HotspotEngine: ObservableObject {
             try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
             try session.setActive(true)
 
-            // Tạo buffer âm thanh tĩnh 1 giây (pure silence) hoàn toàn trong RAM (không cần file mp3 ngoài)
+            // Tạo buffer âm thanh tĩnh 1 giây (pure silence) hoàn toàn trong RAM
             let silentWavData = createSilentWavData()
             audioPlayer = try AVAudioPlayer(data: silentWavData)
             audioPlayer?.numberOfLoops = -1 // Lặp vô hạn
@@ -159,14 +164,12 @@ class HotspotEngine: ObservableObject {
         let chunkSize = 36 + subChunk2Size
 
         var data = Data()
-        // RIFF header
         data.append(contentsOf: "RIFF".utf8)
         data.append(contentsOf: withUnsafeBytes(of: chunkSize.littleEndian) { Array($0) })
         data.append(contentsOf: "WAVE".utf8)
-        // fmt subchunk
         data.append(contentsOf: "fmt ".utf8)
         data.append(contentsOf: withUnsafeBytes(of: Int32(16).littleEndian) { Array($0) })
-        data.append(contentsOf: withUnsafeBytes(of: Int16(1).littleEndian) { Array($0) }) // PCM
+        data.append(contentsOf: withUnsafeBytes(of: Int16(1).littleEndian) { Array($0) })
         data.append(contentsOf: withUnsafeBytes(of: channels.littleEndian) { Array($0) })
         data.append(contentsOf: withUnsafeBytes(of: sampleRate.littleEndian) { Array($0) })
         let byteRate = sampleRate * Int32(channels) * Int32(bitsPerSample / 8)
@@ -174,10 +177,8 @@ class HotspotEngine: ObservableObject {
         let blockAlign = channels * (bitsPerSample / 8)
         data.append(contentsOf: withUnsafeBytes(of: blockAlign.littleEndian) { Array($0) })
         data.append(contentsOf: withUnsafeBytes(of: bitsPerSample.littleEndian) { Array($0) })
-        // data subchunk
         data.append(contentsOf: "data".utf8)
         data.append(contentsOf: withUnsafeBytes(of: subChunk2Size.littleEndian) { Array($0) })
-        // Silent PCM samples (zeros)
         data.append(Data(count: Int(subChunk2Size)))
         return data
     }
@@ -192,7 +193,6 @@ class HotspotEngine: ObservableObject {
     }
 
     private func startNetworkKeepAlive() {
-        // Gửi gói tin mồi định kỳ mỗi 5 giây
         pingTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
             self?.sendKeepAlivePacket()
         }
@@ -201,8 +201,6 @@ class HotspotEngine: ObservableObject {
     private func sendKeepAlivePacket() {
         guard udpSocket >= 0 else { return }
 
-        // Subnet mặc định của iOS Personal Hotspot là 172.20.10.x
-        // Broadcast IP là 172.20.10.15:9999
         let targets = ["172.20.10.15", "255.255.255.255"]
         let message = "HOTSPOT_KEEPALIVE"
         let msgData = [UInt8](message.utf8)
@@ -229,7 +227,6 @@ class HotspotEngine: ObservableObject {
     // MARK: - 4. Background Task Watchdog
     private func startBackgroundTaskWatchdog() {
         bgTask = UIApplication.shared.beginBackgroundTask(withName: "HotspotKeepAliveTask") { [weak self] in
-            // Khi hệ thống yêu cầu kết thúc, tự động tạo chu kỳ task mới
             self?.renewBackgroundTask()
         }
     }
@@ -261,7 +258,6 @@ class HotspotEngine: ObservableObject {
         }
     }
 
-    // Format thời gian đã giữ sóng
     var formattedUptime: String {
         let hours = uptimeSeconds / 3600
         let minutes = (uptimeSeconds % 3600) / 60
