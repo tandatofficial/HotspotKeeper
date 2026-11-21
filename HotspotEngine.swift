@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 import AVFoundation
 import UIKit
 import Darwin
@@ -10,11 +11,11 @@ typealias IOPMAssertionCreateWithNameFunc = @convention(c) (CFString, UInt32, CF
 typealias IOPMAssertionReleaseFunc = @convention(c) (UInt32) -> Int32
 
 // 2. MobileWiFi Private Framework (Tự động bật và ép giữ sóng Hotspot)
-typealias WiFiManagerClientCreateFunc = @convention(c) (CFAllocator?, Int32) -> UnsafeMutableRawPointer?
-typealias WiFiManagerClientGetMISStateFunc = @convention(c) (UnsafeMutableRawPointer) -> Int32
-typealias WiFiManagerClientSetMISStateFunc = @convention(c) (UnsafeMutableRawPointer, Int32) -> Void
-typealias WiFiManagerClientSetMISDiscoveryStateFunc = @convention(c) (UnsafeMutableRawPointer, Int32) -> Void
-typealias WiFiManagerClientGetMISDiscoveryStateFunc = @convention(c) (UnsafeMutableRawPointer) -> Int32
+typealias WiFiManagerClientCreateFunc = @convention(c) (OpaquePointer?, Int32) -> OpaquePointer?
+typealias WiFiManagerClientGetMISStateFunc = @convention(c) (OpaquePointer) -> Int32
+typealias WiFiManagerClientSetMISStateFunc = @convention(c) (OpaquePointer, Int32) -> Void
+typealias WiFiManagerClientSetMISDiscoveryStateFunc = @convention(c) (OpaquePointer, Int32) -> Void
+typealias WiFiManagerClientGetMISDiscoveryStateFunc = @convention(c) (OpaquePointer) -> Int32
 
 class HotspotEngine: ObservableObject {
     static let shared = HotspotEngine()
@@ -46,7 +47,7 @@ class HotspotEngine: ObservableObject {
     private var wifiSetDiscFunc: WiFiManagerClientSetMISDiscoveryStateFunc?
     private var wifiGetDiscFunc: WiFiManagerClientGetMISDiscoveryStateFunc?
 
-    private var wifiManager: UnsafeMutableRawPointer?
+    private var wifiManager: OpaquePointer?
 
     init() {
         resolvePrivateSymbols()
@@ -113,7 +114,7 @@ class HotspotEngine: ObservableObject {
         packetsSent = 0
         statusMessage = "Đang ép bật và khóa giữ sóng Wi-Fi 24/7"
 
-        // 1. Tự động ép bật phần cứng Hotspot qua MobileWiFi (MIS - Mobile Internet Sharing)
+        // 1. Tự động ép bật phần cứng Hotspot qua MobileWiFi
         enableHardwareHotspot(enable: true)
 
         // 2. Khóa Power Management (IOKit) cấm CPU, Baseband và Wi-Fi đi ngủ
@@ -167,12 +168,6 @@ class HotspotEngine: ObservableObject {
             udpSocket = -1
         }
 
-        // Dọn dẹp WiFi Manager
-        if let manager = wifiManager {
-            CFRelease(manager)
-            wifiManager = nil
-        }
-
         // Kết thúc Background task
         endBackgroundTask()
     }
@@ -185,7 +180,7 @@ class HotspotEngine: ObservableObject {
         }
 
         if wifiManager == nil {
-            wifiManager = createFunc(kCFAllocatorDefault, 0)
+            wifiManager = createFunc(nil, 0)
         }
 
         guard let manager = wifiManager else {
@@ -213,7 +208,6 @@ class HotspotEngine: ObservableObject {
     }
 
     private func startDiscoveryLoop() {
-        // Cứ mỗi 3 giây ép lại cờ Discovery State một lần để iOS không bao giờ ẩn SSID
         discoveryTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
             guard let self = self, let manager = self.wifiManager, let setDisc = self.wifiSetDiscFunc else { return }
             setDisc(manager, 1)
@@ -312,7 +306,6 @@ class HotspotEngine: ObservableObject {
     private func sendKeepAlivePacket() {
         guard udpSocket >= 0 else { return }
 
-        // Bắn gói tin tới broadcast Hotspot subnet và các IP client khả dĩ
         let targets = ["172.20.10.15", "255.255.255.255", "172.20.10.2", "172.20.10.3"]
         let message = "HOTSPOT_ALIVE"
         let msgData = [UInt8](message.utf8)
